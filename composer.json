@@ -1,0 +1,38 @@
+{
+  "name": "creative/text-at-any-cost",
+  "description": "Package for parse text from old .doc and .rtf files",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Andrew Zhdanovskih",
+      "email": "azh@crtweb.ru"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "php": ">=7.3",
+    "ext-zlib": "*",
+    "ext-iconv": "*",
+    "ext-zip": "*",
+    "ext-dom": "*",
+    "ext-libxml": "*",
+    "ext-mbstring": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.1@dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "TextAtAnyCost\\": "src"
+    },
+    "files": [
+      "functions/functions.php"
+    ]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Test\\": "tests"
+    }
+  }
+}
