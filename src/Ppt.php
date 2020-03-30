@@ -11,7 +11,6 @@ final class Ppt extends Cfb
 {
     public function parse(): ?string
     {
-
         // В файле обязан быть поток Current User.
         $cuStreamID = $this->getStreamIdByName('Current User');
         if ($cuStreamID === false) {

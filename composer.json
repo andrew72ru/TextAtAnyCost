@@ -6,21 +6,29 @@
   "authors": [
     {
       "name": "Andrew Zhdanovskih",
-      "email": "azh@crtweb.ru"
+      "email": "azh@crtweb.ru",
+      "role": "Refactoring and OOP-style"
+    },
+    {
+      "name": "Алексей Рембиш a.k.a Ramon",
+      "email": "alex@rembish.ru",
+      "role": "Core developer"
     }
   ],
-  "minimum-stability": "dev",
+  "minimum-stability": "stable",
   "require": {
     "php": ">=7.3",
-    "ext-zlib": "*",
-    "ext-iconv": "*",
-    "ext-zip": "*",
     "ext-dom": "*",
+    "ext-iconv": "*",
     "ext-libxml": "*",
-    "ext-mbstring": "*"
+    "ext-mbstring": "*",
+    "ext-zip": "*",
+    "ext-zlib": "*",
+    "doctrine/collections": "^1.6"
   },
   "require-dev": {
-    "phpunit/phpunit": "^9.1@dev"
+    "phpunit/phpunit": "^9",
+    "symfony/var-dumper": "^5.0"
   },
   "autoload": {
     "psr-4": {
@@ -34,5 +42,9 @@
     "psr-4": {
       "Test\\": "tests"
     }
+  },
+  "config": {
+    "preferred-install": {"*": "dist"},
+    "sort-packages": true
   }
 }
