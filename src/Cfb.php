@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php
 
 namespace TextAtAnyCost;
 
@@ -11,7 +11,8 @@ use TextAtAnyCost\ServiceClasses\{CfbStorage, FatEntry};
  *
  * @author Алексей Рембиш a.k.a Ramon <alex@rembish.ru> — original methods and algorythms
  * @author Andrew Zhdanovskih <andrew72ru@gmail.com> — OOP-style, refactoring and tests
- * @link https://github.com/rembish/TextAtAnyCost — the original package.
+ *
+ * @see https://github.com/rembish/TextAtAnyCost — the original package.
  */
 abstract class Cfb implements ConverterInterface, ReadFileInterface
 {
@@ -30,6 +31,11 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
      */
     private $storage;
 
+    /**
+     * Cfb constructor.
+     *
+     * @param CfbStorage|null $storage
+     */
     public function __construct(CfbStorage $storage = null)
     {
         if ($storage === null) {
@@ -39,6 +45,9 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
         }
     }
 
+    /**
+     * @return CfbStorage
+     */
     public function getStorage(): CfbStorage
     {
         return $this->storage;
@@ -53,10 +62,7 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
             throw new \RuntimeException(\sprintf('Unable to read file \'%s\'', $filename));
         }
 
-        $this->data = \file_get_contents($filename);
-        if ($this->data === false) {
-            throw new \RuntimeException('Unable to load file');
-        }
+        $this->data = \file_get_contents($filename) ?: null;
         $this->loadVariables();
     }
 
@@ -87,6 +93,16 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
      * @return string|null
      */
     abstract public function parse(): ?string;
+
+    /**
+     * Convert binary unicode string to utf-8 string.
+     *
+     * @param string $in
+     * @param bool   $check
+     *
+     * @return string|null
+     */
+    abstract protected function unicodeToUtf8($in, $check = false): ?string;
 
     /**
      * Find the stream number in "directory" structure by name.
@@ -132,50 +148,23 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
         if (!$isRoot && $size < $this->storage->getMiniSectorCutoff()) {
             // get the miniFAT sector size — 64 bytes
             $sSize = 1 << $this->storage->getMiniSectorShift();
-            $this->readToStream(
-                $stream,
-                $from,
-                $this->storage->getMiniSectorShift(),
-                $sSize,
-                $this->storage->getMiniFAT(),
-                $this->storage->getMiniFATChains()->getValues()
-            );
-        } else {
-            ++$from;
 
-            // Second option (big part) — read from FAT
+            do {
+                $start = $from << $this->storage->getMiniSectorShift();
+                $stream .= \substr($this->storage->getMiniFAT(), $start, $sSize);
+                $from = $this->storage->getMiniFATChains()->get($from) ?? self::END_OF_CHAIN;
+            } while ($from !== self::END_OF_CHAIN);
+        } else {
             $sSize = 1 << $this->storage->getSectorShift();
-            $this->readToStream(
-                $stream,
-                $from,
-                $this->storage->getSectorShift(),
-                $sSize,
-                $this->data,
-                $this->storage->getFatChains()->getValues());
+
+            do {
+                $start = ($from + 1) << $this->storage->getSectorShift();
+                $stream .= substr($this->data, $start, $sSize);
+                $from = $this->storage->getFatChains()->get($from) ?? self::END_OF_CHAIN;
+            } while ($from !== self::END_OF_CHAIN);
         }
         // Stream content with care of size
         return ($result = \substr($stream, 0, $size)) === false ? null : $result;
-    }
-
-    /**
-     * @param string|null $stream
-     * @param mixed       $from
-     * @param int         $shift
-     * @param int         $stopShift
-     * @param string      $source
-     * @param array       $chains
-     */
-    private function readToStream(?string &$stream, &$from, int $shift, int $stopShift, string $source, array $chains): void
-    {
-        $start = $from << $shift;
-        $part = \substr($source, $start, $stopShift);
-        if ($part) {
-            $stream .= $part;
-        }
-        $from = $chains[$from] ?? self::END_OF_CHAIN;
-        if ($from !== self::END_OF_CHAIN) {
-            $this->readToStream($stream, $from, $shift, $stopShift, $source, $chains);
-        }
     }
 
     /**
@@ -206,7 +195,6 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
         $this->storage->setCFAT($this->getLong(0x2C));
 
         // Count and position of first MiniFat-sector of chains
-        $this->storage->setCMiniFAT($this->getLong(0x40));
         $this->storage->setFMiniFAT($this->getLong(0x3C));
 
         // Where FAT-sectors chains is and count of it
@@ -276,7 +264,7 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
             for ($i = 0; $i < $size; $i += 4) {
                 $this->storage->getMiniFATChains()->add($this->getLong($start + $i));
             }
-            $from = $this->fatChains[$from] ?? self::END_OF_CHAIN;
+            $from = $this->storage->getFatChains()->get($from) ?? self::END_OF_CHAIN;
         }
     }
 
@@ -318,15 +306,13 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
                 $this->storage->getFatEntries()->add($fatEntry);
             }
 
-            // Find the next sector with description and go to it
-            $from = $this->storage->getFatChains()[$from] ?? self::END_OF_CHAIN;
-            // (if it exists)
+            $from = $this->storage->getFatChains()->get($from) ?? self::END_OF_CHAIN;
         } while ($from !== self::END_OF_CHAIN);
 
         // Remove empty occurrences if they are exists
         foreach ($this->storage->getFatEntries() as $fatEntry) {
             if ($fatEntry->getType() === 0) {
-                $this->storage->getFatEntries()->remove($fatEntry);
+                $this->storage->getFatEntries()->removeElement($fatEntry);
             }
         }
     }
@@ -345,54 +331,8 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
         for ($i = 0, $iMax = \strlen($in); $i < $iMax; $i += 2) {
             $out .= \chr($this->getShort($i, $in));
         }
-        if ($out === null) {
-            return null;
-        }
 
-        return \trim($out, " \t\n\r\0\x0B\x05\x01");
-    }
-
-    /**
-     * Convert Unicode to UTF8.
-     *
-     * @param string $in
-     *
-     * @return string
-     */
-    protected function unicodeToUtf8(string $in): string
-    {
-        $out = null;
-
-        // Идём по двухбайтовым последовательностям
-        for ($i = 0, $iMax = strlen($in); $i < $iMax; $i += 2) {
-            $cd = \substr($in, $i, 2);
-            $cdArr = \str_split($cd);
-
-            // Если верхний байт нулевой, то перед нами ANSI
-            if (\ord($cdArr[1] ?? null) === 0) {
-                if (\ord($cdArr[0]) >= 32) {
-                    $out .= $cdArr[0] ?? null;
-                }
-
-                switch (\ord($cdArr[0])) {
-                    case 0x0D: case 0x07: $out .= "\n"; break;
-                    case 0x08: case 0x01: $out .= ''; break;
-                    case 0x13: $out .= 'HYPER13'; break;
-                    case 0x14: $out .= 'HYPER14'; break;
-                    case 0x15: $out .= 'HYPER15'; break;
-                }
-            } else {
-                if (\ord($cdArr[1] ?? '') === 0x13) {
-                    continue;
-                }
-
-                // Иначе преобразовываем в HTML entity
-                $encoded = \sprintf('&#x%04x;', $this->getShort(0, $cd));
-                $out .= \html_entity_decode($encoded);
-            }
-        }
-
-        return $out;
+        return \trim($out);
     }
 
     /**

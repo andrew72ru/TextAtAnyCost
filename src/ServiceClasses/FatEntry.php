@@ -1,13 +1,11 @@
 <?php
 /**
- * 30.03.2020
+ * 30.03.2020.
  */
 
 declare(strict_types=1);
 
-
 namespace TextAtAnyCost\ServiceClasses;
-
 
 class FatEntry
 {
@@ -17,7 +15,7 @@ class FatEntry
     private $name = '';
 
     /**
-     * @var int type of occurrence — user data, empty sector etc.
+     * @var int type of occurrence — user data, empty sector etc
      */
     private $type = 0;
 
@@ -61,11 +59,13 @@ class FatEntry
 
     /**
      * @param string $name
+     *
      * @return FatEntry
      */
     public function setName(string $name): FatEntry
     {
         $this->name = $name;
+
         return $this;
     }
 
@@ -79,11 +79,13 @@ class FatEntry
 
     /**
      * @param int $type
+     *
      * @return FatEntry
      */
     public function setType(int $type): FatEntry
     {
         $this->type = $type;
+
         return $this;
     }
 
@@ -97,11 +99,13 @@ class FatEntry
 
     /**
      * @param int $color
+     *
      * @return FatEntry
      */
     public function setColor(int $color): FatEntry
     {
         $this->color = $color;
+
         return $this;
     }
 
@@ -115,11 +119,13 @@ class FatEntry
 
     /**
      * @param int $left
+     *
      * @return FatEntry
      */
     public function setLeft(int $left): FatEntry
     {
         $this->left = $left;
+
         return $this;
     }
 
@@ -133,11 +139,13 @@ class FatEntry
 
     /**
      * @param int $right
+     *
      * @return FatEntry
      */
     public function setRight(int $right): FatEntry
     {
         $this->right = $right;
+
         return $this;
     }
 
@@ -151,11 +159,13 @@ class FatEntry
 
     /**
      * @param int $child
+     *
      * @return FatEntry
      */
     public function setChild(int $child): FatEntry
     {
         $this->child = $child;
+
         return $this;
     }
 
@@ -169,11 +179,13 @@ class FatEntry
 
     /**
      * @param int $start
+     *
      * @return FatEntry
      */
     public function setStart(int $start): FatEntry
     {
         $this->start = $start;
+
         return $this;
     }
 
@@ -187,11 +199,13 @@ class FatEntry
 
     /**
      * @param int $size
+     *
      * @return FatEntry
      */
     public function setSize(int $size): FatEntry
     {
         $this->size = $size;
+
         return $this;
     }
 }

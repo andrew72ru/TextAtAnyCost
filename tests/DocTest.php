@@ -24,10 +24,19 @@ class DocTest extends LocalTestCase
     public function testDocParse(): void
     {
         $doc = new Doc();
-        $doc->read($this->path);
+        $doc->read($this->dataDir('sample2.doc'));
         $result = $doc->parse();
         $this->assertNotNull($result);
-        $this->assertStringContainsString('Hic ambiguo ludimur', $result);
-        $this->assertStringContainsString('Quis istud possit, inquit, negare?', $result);
+        $this->assertStringContainsString('Название', $result);
+        $this->assertStringContainsString('Заголовок', $result);
+    }
+
+    public function testOtherDocParse(): void
+    {
+        $doc = new Doc();
+        $doc->read($this->dataDir('sample1.doc'));
+        $result = $doc->parse();
+        $this->assertNotNull($result);
+        $this->assertStringContainsString('Lorem ipsum dolor sit amet', $result);
     }
 }

@@ -1,13 +1,11 @@
 <?php
 /**
- * 30.03.2020
+ * 30.03.2020.
  */
 
 declare(strict_types=1);
 
-
 namespace TextAtAnyCost\ServiceClasses;
-
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -108,31 +106,11 @@ class CfbStorage
     }
 
     /**
-     * @param array|Collection $DIFAT
-     * @return CfbStorage
-     */
-    public function setDIFAT($DIFAT): self
-    {
-        $this->DIFAT = \is_array($DIFAT) ? new ArrayCollection($DIFAT) : $DIFAT;
-        return $this;
-    }
-
-    /**
      * @return Collection
      */
     public function getFatChains(): Collection
     {
         return $this->fatChains;
-    }
-
-    /**
-     * @param array|Collection $fatChains
-     * @return CfbStorage
-     */
-    public function setFatChains($fatChains): self
-    {
-        $this->fatChains = \is_array($fatChains) ? new ArrayCollection($fatChains) : $fatChains;
-        return $this;
     }
 
     /**
@@ -144,31 +122,11 @@ class CfbStorage
     }
 
     /**
-     * @param array|Collection $fatEntries
-     * @return CfbStorage
-     */
-    public function setFatEntries($fatEntries): self
-    {
-        $this->fatEntries = \is_array($fatEntries) ? new ArrayCollection($fatEntries) : $fatEntries;
-        return $this;
-    }
-
-    /**
      * @return Collection
      */
     public function getMiniFATChains(): Collection
     {
         return $this->miniFATChains;
-    }
-
-    /**
-     * @param array|Collection $miniFATChains
-     * @return CfbStorage
-     */
-    public function setMiniFATChains($miniFATChains): self
-    {
-        $this->miniFATChains = \is_array($miniFATChains) ? new ArrayCollection($miniFATChains) : $miniFATChains;
-        return $this;
     }
 
     /**
@@ -181,11 +139,13 @@ class CfbStorage
 
     /**
      * @param string $miniFAT
+     *
      * @return CfbStorage
      */
     public function setMiniFAT(string $miniFAT): self
     {
         $this->miniFAT = $miniFAT;
+
         return $this;
     }
 
@@ -199,11 +159,13 @@ class CfbStorage
 
     /**
      * @param int $cDir
+     *
      * @return CfbStorage
      */
     public function setCDir(int $cDir): self
     {
         $this->cDir = $cDir;
+
         return $this;
     }
 
@@ -217,11 +179,13 @@ class CfbStorage
 
     /**
      * @param bool $isLittleEndian
+     *
      * @return CfbStorage
      */
     public function setIsLittleEndian(bool $isLittleEndian): self
     {
         $this->isLittleEndian = $isLittleEndian;
+
         return $this;
     }
 
@@ -235,11 +199,13 @@ class CfbStorage
 
     /**
      * @param int $version
+     *
      * @return CfbStorage
      */
     public function setVersion(int $version): self
     {
         $this->version = $version;
+
         return $this;
     }
 
@@ -253,11 +219,13 @@ class CfbStorage
 
     /**
      * @param int $sectorShift
+     *
      * @return CfbStorage
      */
     public function setSectorShift(int $sectorShift): self
     {
         $this->sectorShift = $sectorShift;
+
         return $this;
     }
 
@@ -271,11 +239,13 @@ class CfbStorage
 
     /**
      * @param int $miniSectorShift
+     *
      * @return CfbStorage
      */
     public function setMiniSectorShift(int $miniSectorShift): self
     {
         $this->miniSectorShift = $miniSectorShift;
+
         return $this;
     }
 
@@ -289,11 +259,13 @@ class CfbStorage
 
     /**
      * @param int $miniSectorCutoff
+     *
      * @return CfbStorage
      */
     public function setMiniSectorCutoff(int $miniSectorCutoff): self
     {
         $this->miniSectorCutoff = $miniSectorCutoff;
+
         return $this;
     }
 
@@ -307,11 +279,13 @@ class CfbStorage
 
     /**
      * @param int $fDir
+     *
      * @return CfbStorage
      */
     public function setFDir(int $fDir): self
     {
         $this->fDir = $fDir;
+
         return $this;
     }
 
@@ -325,11 +299,13 @@ class CfbStorage
 
     /**
      * @param int $cFAT
+     *
      * @return CfbStorage
      */
     public function setCFAT(int $cFAT): self
     {
         $this->cFAT = $cFAT;
+
         return $this;
     }
 
@@ -343,11 +319,13 @@ class CfbStorage
 
     /**
      * @param int $cMiniFAT
+     *
      * @return CfbStorage
      */
     public function setCMiniFAT(int $cMiniFAT): self
     {
         $this->cMiniFAT = $cMiniFAT;
+
         return $this;
     }
 
@@ -361,11 +339,13 @@ class CfbStorage
 
     /**
      * @param int $fMiniFAT
+     *
      * @return CfbStorage
      */
     public function setFMiniFAT(int $fMiniFAT): self
     {
         $this->fMiniFAT = $fMiniFAT;
+
         return $this;
     }
 
@@ -379,11 +359,13 @@ class CfbStorage
 
     /**
      * @param int $cDIFAT
+     *
      * @return CfbStorage
      */
     public function setCDIFAT(int $cDIFAT): self
     {
         $this->cDIFAT = $cDIFAT;
+
         return $this;
     }
 
@@ -397,11 +379,13 @@ class CfbStorage
 
     /**
      * @param int $fDIFAT
+     *
      * @return CfbStorage
      */
     public function setFDIFAT(int $fDIFAT): self
     {
         $this->fDIFAT = $fDIFAT;
+
         return $this;
     }
 }
