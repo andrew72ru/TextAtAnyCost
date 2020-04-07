@@ -39,4 +39,9 @@ class DocTest extends LocalTestCase
         $this->assertNotNull($result);
         $this->assertStringContainsString('Lorem ipsum dolor sit amet', $result);
     }
+
+    public function testParseRightInPlace(): void
+    {
+        $this->assertStringContainsString('Название', (new Doc())->parse($this->dataDir('sample2.doc')));
+    }
 }

@@ -9,5 +9,10 @@ namespace TextAtAnyCost;
 
 interface ConverterInterface
 {
-    public function parse(): ?string;
+    /**
+     * @param string|null $path
+     *
+     * @return string|null
+     */
+    public function parse(?string $path = null): ?string;
 }

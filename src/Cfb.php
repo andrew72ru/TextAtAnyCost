@@ -90,9 +90,9 @@ abstract class Cfb implements ConverterInterface, ReadFileInterface
     }
 
     /**
-     * @return string|null
+     * {@inheritDoc}
      */
-    abstract public function parse(): ?string;
+    abstract public function parse(string $path = null): ?string;
 
     /**
      * Convert binary unicode string to utf-8 string.
