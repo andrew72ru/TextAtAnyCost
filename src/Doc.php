@@ -1,9 +1,79 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace TextAtAnyCost;
 
-final class Doc extends Cfb
+/**
+ * Read file from *.doc.
+ * Microsoft Word Document extends the Windows Compound Binary File Format
+ *
+ * @author Алексей Рембиш a.k.a Ramon <alex@rembish.ru> — original methods and algorythms
+ * @author Andrew Zhdanovskih <andrew72ru@gmail.com> — OOP-style, refactoring and tests
+ */
+class Doc extends Cfb
 {
+    private function lastCP(string $wdStream): int
+    {
+        $arr = [0x0050, 0x0054, 0x0058, 0x005C, 0x0060, 0x0064, 0x0068];
+
+        $ccpText = $this->getLong(0x004C, $wdStream);
+        $lastCP = 0;
+        foreach ($arr as $item) {
+            $lastCP += $this->getLong($item, $wdStream);
+        }
+
+        $lastCP += ($lastCP !== 0) + $ccpText;
+
+        return (int) $lastCP;
+    }
+
+    /**
+     * @param string $wdStream
+     * @return string
+     */
+    private function targetStreamName(string $wdStream): string
+    {
+        $bytes = $this->getShort(0x000A, $wdStream);
+        $fWhichTblStm = ($bytes & 0x0200) === 0x0200;
+
+        return \sprintf('%dTable', (int) $fWhichTblStm);
+    }
+
+    /**
+     * Original code authors comment:
+     *
+     * > Отмечу, что здесь вааааааааааще жопа. В документации на сайте толком не сказано
+     * > сколько гона может быть до pieceTable в этом CLX, поэтому будем исходить из тупого
+     * > перебора - ищем возможное начало pieceTable (обязательно начинается на 0х02), затем
+     * > читаем следующие 4 байта - размерность pieceTable. Если размерность по факту и
+     * > размерность, записанная по смещению, то бинго! мы нашли нашу pieceTable. Нет?
+     * > ищем дальше.
+     *
+     * @param string $clx
+     * @return string
+     */
+    private function loadPieceTable(string $clx): string
+    {
+        $pieceTable = '';
+        $from = 0;
+        while (($i = \strpos($clx, \chr(0x02), $from)) !== false) {
+            $lcbPieceTable = $this->getLong($i + 1, $clx);
+            $pieceTable = \substr($clx, $i + 5);
+            if (\strlen($pieceTable) !== $lcbPieceTable) {
+                $from = $i + 1;
+                continue;
+            }
+
+            break;
+        }
+
+        return $pieceTable;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function parse(): ?string
     {
         // Wee need two streams: WordDocument and 0Table (or 1Table depends on situation).
@@ -12,139 +82,105 @@ final class Doc extends Cfb
         if ($wdStreamID === null) {
             return null;
         }
-
-        // We have found the first stream
         $wdStream = $this->getStreamById($wdStreamID);
 
-        // We need to get the special block with name 'File Information Block' in start of WordDocument stream.
-        $bytes = $this->getShort(0x000A, $wdStream);
-        // This bit shows which table are we need — first or zero
-        $fWhichTblStm = ($bytes & 0x0200) === 0x0200;
-
-        // We should know the CLX position and size
-        $fcClx = $this->getLong(0x01A2, $wdStream);
-        $lcbClx = $this->getLong(0x01A6, $wdStream);
-
-        // Find a needing table in file
-        $tStreamID = $this->getStreamIdByName((int) $fWhichTblStm . 'Table');
-        if ($tStreamID === null) {
+        $tStreamID = $this->getStreamIdByName($this->targetStreamName($wdStream));
+        if ($tStreamID === false) {
             return null;
         }
 
-        // Read the stream to variable
         $tStream = $this->getStreamById($tStreamID);
-        // Find CLX in stream
-        $clx = \substr($tStream, $fcClx, $lcbClx);
-        $pieceTable = $this->findPeaceTable($clx);
+        $clx = \substr($tStream, $this->getLong(0x01A2, $wdStream), $this->getLong(0x01A6, $wdStream));
 
-        // Теперь заполняем массив character positions, пока не наткнћмся
-        // на последний CP.
-        $lastCP = $this->getLastCharacterPosition($wdStream);
-        $cp = [];
+        $pieceTable = $this->loadPieceTable($clx);
+
+        $characterPositions = [];
         $i = 0;
-        while (($cp[] = $this->getLong($i, $pieceTable)) !== $lastCP) {
+        $lastCP = $this->lastCP($wdStream);
+        while (($characterPositions[] = $this->getLong($i, $pieceTable)) !== $lastCP) {
             $i += 4;
         }
-        // Остаток идћт на PCD (piece descriptors)
-        $pcd = \str_split(\substr($pieceTable, $i + 4), 8);
+        // The rest of piece table is for Character descriptors
+        $pieceDescriptors = \str_split(\substr($pieceTable, $i + 4), 8);
 
         $text = null;
-        // Ура! мы подошли к главному - чтение текста из файла.
-        // Идћм по декскрипторам кусочков
-        for ($i = 0, $iMax = \count($pcd); $i < $iMax; ++$i) {
-            // Получаем слово со смещением и флагом компрессии
-            $fcValue = $this->getLong(2, $pcd[$i]);
-            // Смотрим - что перед нами тупой ANSI или Unicode
+        // The MAIN idea — read text from file
+        // Walk for piece descriptors
+        for ($i = 0, $iMax = \count($pieceDescriptors); $i < $iMax; ++$i) {
+            // Get the word with offset and compression flag
+            $fcValue = $this->getLong(2, $pieceDescriptors[$i]);
+            // ANSI or Unicode
             $isANSI = ($fcValue & 0x40000000) === 0x40000000;
-            // Остальное без макушки идћт на смещение
+            // The rest (without head) goes to offset
             $fc = $fcValue & 0x3FFFFFFF;
 
-            // Получаем длину кусочка текста
-            $lcb = $cp[$i + 1] - $cp[$i];
-            // Если перед нами Unicode, то мы должны прочитать в два раза больше файлов
+            // Let the length of text part
+            $lcb = $characterPositions[$i + 1] - $characterPositions[$i];
+            // If we have a Unicode, we must read x2 files
             if (!$isANSI) {
                 $lcb *= 2;
-            } // Если ANSI, то начать в два раза раньше.
-            else {
+            } else {
+                // If we have ANSI, start from half
                 $fc /= 2;
             }
 
-            // Читаем кусок с учћтом смещения и размера из WordDocument-потока
+            // Get the depended of offset and size peace from WordDocument-stream
             $part = \substr($wdStream, $fc, $lcb);
-            // Если перед нами Unicode, то преобразовываем его в нормальное состояние
+            // If this is a Unicode, convert it to utf-8
             if (!$isANSI) {
                 $part = $this->unicodeToUtf8($part);
             }
 
-            // Добавляем кусочек к общему тексту
+            // Add part to text
             $text .= $part;
         }
 
-        // Удаляем из файла вхождения с внедрћнными объектами
-        $text = \preg_replace('/HYPER13 *(INCLUDEPICTURE|HTMLCONTROL)(.*)HYPER15/iU', '', $text);
-        $text = \preg_replace('/HYPER13(.*)HYPER14(.*)HYPER15/iU', '$2', $text);
-        // Возвращаем результат
+        // Remove entrances with objects
+        $text = preg_replace('/HYPER13 *(INCLUDEPICTURE|HTMLCONTROL)(.*)HYPER15/iU', '', $text);
+        $text = preg_replace('/HYPER13(.*)HYPER14(.*)HYPER15/iU', '$2', $text);
 
         return $text;
     }
 
     /**
-     * @param string $clx
-     * @return string
+     * {@inheritDoc}
      */
-    protected function findPeaceTable(string $clx): string
+    protected function unicodeToUtf8($in, $check = false): ?string
     {
-        // Отмечу, что здесь вааааааааааще жопа. В документации на сайте толком не сказано
-        // сколько гона может быть до pieceTable в этом CLX, поэтому будем исходить из тупого
-        // перебора - ищем возможное начало pieceTable (обязательно начинается на 0х02), затем
-        // читаем следующие 4 байта - размерность pieceTable. Если размерность по факту и
-        // размерность, записанная по смещению, то бинго! мы нашли нашу pieceTable. Нет?
-        // ищем дальше.
+        $out = null;
+        for ($i = 0, $iMax = \strlen($in); $i < $iMax; $i += 2) {
+            $cd = \substr($in, $i, 2);
 
-        $pieceTable = null;
-        $from = 0;
-
-        while (($i = \strpos($clx, \chr(0x02), $from)) !== false) {
-            // Находим размер pieceTable
-            $lcbPieceTable = $this->getLong($i + 1, $clx);
-            // Находим pieceTable
-            $pieceTable = \substr($clx, $i + 5);
-
-            // Если размер фактический отличается от нужного, то это не то -
-            // едем дальше.
-            if (\strlen($pieceTable) !== $lcbPieceTable) {
-                $from = $i + 1;
-                continue;
+            if (\ord($cd[1]) === 0) {
+                if (\ord($cd[0]) >= 32) {
+                    $out .= $cd[0];
+                } else {
+                    $out .= ($val = $this->changeCommand(\ord($cd[0]))) !== null ? $val->current() : null;
+                }
+            } else {
+                $out .= \html_entity_decode('&#x' . sprintf('%04x', $this->getShort(0, $cd)) . ';');
             }
-            // Хотя нет - вроде нашли, break, товарищи!
-            break;
         }
 
-        return $pieceTable;
+        return $out;
     }
 
-    /**
-     * Lookup last character position in Word Document steam.
-     *
-     * @param string $wordDocStream
-     * @return int
-     */
-    protected function getLastCharacterPosition(string $wordDocStream): int
+    private function changeCommand(int $ord): ?\Generator
     {
-        // Read few values for separate positions from sizing in CLX
-        $ccpText = $this->getLong(0x004C, $wordDocStream);
-        $ccpFtn = $this->getLong(0x0050, $wordDocStream);
-        $ccpHdd = $this->getLong(0x0054, $wordDocStream);
-        $ccpMcr = $this->getLong(0x0058, $wordDocStream);
-        $ccpAtn = $this->getLong(0x005C, $wordDocStream);
-        $ccpEdn = $this->getLong(0x0060, $wordDocStream);
-        $ccpTxbx = $this->getLong(0x0064, $wordDocStream);
-        $ccpHdrTxbx = $this->getLong(0x0068, $wordDocStream);
-
-        // With this values, find a value of last character position
-        $lastCP = $ccpFtn + $ccpHdd + $ccpMcr + $ccpAtn + $ccpEdn + $ccpTxbx + $ccpHdrTxbx;
-        $lastCP += ($lastCP !== 0) + $ccpText;
-
-        return $lastCP;
+        switch ($ord) {
+            case 0x0D:
+            case 0x07:
+                yield "\n"; break;
+            case 0x13:
+                yield 'HYPER13'; break;
+            case 0x14:
+                yield 'HYPER14'; break;
+            case 0x15:
+                yield 'HYPER15'; break;
+            case 0x08:
+            case 0x01:
+            default:
+                break;
+        }
     }
 }

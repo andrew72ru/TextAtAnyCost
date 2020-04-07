@@ -8,7 +8,12 @@ declare(strict_types=1);
 
 namespace Test;
 
+use ReflectionException;
+use ReflectionMethod;
+use ReflectionObject;
 use TextAtAnyCost\Cfb;
+use TextAtAnyCost\Doc;
+use TextAtAnyCost\ServiceClasses\CfbStorage;
 
 /**
  * Test the Cfb class through inherits.
@@ -31,5 +36,33 @@ class MainCfbTest extends LocalTestCase
         $initializedStorage = $cfb->getStorage();
 
         $this->assertNotEquals($emptyStorage, $initializedStorage);
+    }
+
+    public function testWithInitializedSedStorage(): void
+    {
+        $emptyStorage = $this->getMockForAbstractClass(Cfb::class)->getStorage();
+        $newCfb = $this->getMockForAbstractClass(Cfb::class, [$emptyStorage]);
+
+        $this->assertSame($emptyStorage, $newCfb->getStorage());
+    }
+
+    public function testLoadVariables(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $cbf = $this->getMockForAbstractClass(Cfb::class);
+        try {
+            $loadVariables = (new ReflectionObject($cbf))->getMethod('loadVariables');
+        } catch (ReflectionException $e) {
+            $this->fail($e->getMessage());
+        }
+        $this->assertInstanceOf(ReflectionMethod::class, $loadVariables);
+        $loadVariables->setAccessible(true);
+
+        $file = __FILE__;
+        $cbf->read($file);
+
+        $loadVariables->invoke($cbf);
+        $this->assertEquals($this->getExpectedExceptionMessage(), 'Data is not CFB structure');
     }
 }

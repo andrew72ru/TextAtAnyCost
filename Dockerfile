@@ -20,5 +20,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
     --filename=composer
 
 RUN apk del --no-network .build-deps
+
+RUN echo "memory_limit=2G" >> /usr/local/etc/php/conf.d/memory-limit.ini
 COPY . /var/www/app
 RUN composer install --no-dev --no-ansi --no-interaction --prefer-dist
